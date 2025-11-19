@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SJEC Portal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* Slider Styles */
+        .slider-container {
+            width: 100%;
+            max-width: 800px;
+            height: 300px; /* Reduced height */
+            margin: 30px auto;
+            overflow: hidden;
+            border-radius: 15px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+            position: relative;
+            background: #fff;
+        }
+
+        .slider-wrapper {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+            height: 100%;
+        }
+
+        .slider-wrapper img {
+            width: 100%;
+            height: 100%;
+            flex-shrink: 0;
+            object-fit: cover; /* Maintain aspect ratio and crop */
+            border-right: 2px solid #fff;
+            animation: fadeIn 1s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+
+        .prev, .next {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 50%;
+            font-size: 20px;
+            user-select: none;
+            transition: background 0.3s;
+        }
+
+        .prev:hover, .next:hover { background: rgba(0,0,0,0.6); }
+
+        .prev { left: 10px; }
+        .next { right: 10px; }
+
+        .dots {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .dot {
+            height: 12px;
+            width: 12px;
+            margin: 0 5px;
+            background-color: #bbb;
+            border-radius: 50%;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .dot.active { background-color: #fca311; }
+
+        /* AI Assistant Floating Widget */
+        #ai-assistant { position:fixed; bottom:20px; right:20px; z-index:999; font-family: 'Segoe UI', sans-serif; }
+        #assistant-icon { background:#fca311; color:#0d1b2a; width:60px; height:60px; border-radius:50%; display:flex; justify-content:center; align-items:center; font-size:30px; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.2); transition:0.3s; }
+        #assistant-icon:hover { background:#e59400; }
+        #assistant-chat { display:none; width:300px; max-height:400px; background:#fff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); overflow:hidden; flex-direction:column; }
+        #assistant-header { background:#0d1b2a; color:#fca311; padding:10px; display:flex; justify-content:space-between; font-weight:bold; }
+        #assistant-messages { height:250px; overflow-y:auto; padding:10px; background:#f0f2f5; }
+        #assistant-messages .assistant-message { padding:8px 12px; border-radius:8px; margin-bottom:8px; max-width:80%; background:#f0f0f0; color:#333; }
+        #assistant-messages .user-message { background:#0d1b2a; color:#fff; text-align:right; margin-left:auto; }
+        #assistant-input { width:calc(100% - 100px); padding:8px 10px; margin:5px; border-radius:8px; border:1px solid #ccc; outline:none; }
+        #assistant-send { padding:8px 12px; margin:5px; border:none; border-radius:8px; background:#fca311; color:#0d1b2a; font-weight:bold; cursor:pointer; transition:0.3s; }
+        #assistant-send:hover { background:#e59400; }
+        #assistant-close { cursor:pointer; }
+
+        /* Reset & Basic */
+        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f0f2f5; color:#333; }
+
+        /* Loading Screen */
+        #loading-screen { position:fixed; top:0; left:0; width:100%; height:100%; background:#0d1b2a; display:flex; justify-content:center; align-items:center; z-index:9999; transition: opacity 0.5s; }
+        #loading-progress { width:0%; height:12px; background:#fca311; border-radius:6px; transition: width 0.2s; }
+
+        /* Navbar */
+        nav { background:#0d1b2a; color:#fff; display:flex; justify-content:space-between; padding:10px 20px; align-items:center; position:sticky; top:0; z-index:100; box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+        .nav-left { display:flex; align-items:center; gap:10px; }
+        .nav-left img { height:35px; } /* smaller logo */
+        .nav-left h1 { font-size:1.5rem; font-weight:bold; color:#fca311; }
+        .nav-links { display:flex; gap:20px; }
+        .nav-link { color:#fff; text-decoration:none; font-weight:500; cursor:pointer; padding:5px 10px; border-radius:5px; transition:0.3s; }
+        .nav-link:hover, .nav-link.active { background:#fca311; color:#0d1b2a; }
+        #mobile-menu-btn { display:none; cursor:pointer; font-size:1.5rem; }
+        @media(max-width:768px) {
+            .nav-links { display:none; flex-direction:column; background:#0d1b2a; position:absolute; top:60px; right:0; width:200px; padding:10px; border-radius:0 0 0 10px; }
+            .nav-links.active { display:flex; }
+            #mobile-menu-btn { display:block; }
+        }
+
+        /* Sections */
+        .section { display:none; padding:30px 20px; }
+        .section.active { display:block; }
+        .section h2 { margin-bottom:20px; color:#0d1b2a; }
+
+        /* Chatbot */
+        #chatbot { background:#fff; padding:20px; border-radius:12px; max-width:500px; margin:auto; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+        #chat-messages { height:250px; overflow-y:auto; border:1px solid #ccc; padding:10px; border-radius:8px; margin-bottom:10px; background:#f9f9f9;}
+        .message { padding:8px 12px; margin-bottom:8px; border-radius:8px; word-wrap:break-word; max-width:80%; }
+        .user-message { background:#0d1b2a; color:#fff; text-align:right; margin-left:auto; }
+        .bot-message { background:#f0f0f0; color:#333; }
+
+        #chat-input { width:calc(100% - 100px); padding:10px; border-radius:8px; border:1px solid #ccc; outline:none; }
+        #send-message { padding:10px 15px; border:none; border-radius:8px; background:#fca311; color:#0d1b2a; font-weight:bold; cursor:pointer; transition:0.3s; }
+        #send-message:hover { background:#e59400; }
+
+        /* Remainders */
+        #remainders input, #remainders textarea, #remainders button { display:block; margin:10px 0; width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; }
+        #remainders button { background:#fca311; border:none; color:#0d1b2a; font-weight:bold; cursor:pointer; transition:0.3s; }
+        #remainders button:hover { background:#e59400; }
+        .remainder-item { background:#fff; padding:15px; border-radius:10px; margin-bottom:15px; box-shadow:0 4px 8px rgba(0,0,0,0.05); }
+
+        /* File Upload */
+        #file-upload { background:#fff; padding:30px; text-align:center; cursor:pointer; border:2px dashed #ccc; border-radius:12px; margin-bottom:15px; transition:0.3s; }
+        #file-upload:hover { background:#f9f9f9; border-color:#fca311; }
+        #file-upload i { font-size:50px; color:#0d1b2a; margin-bottom:10px; }
+        #file-upload p { margin:5px 0; }
+
+        /* Assignments */
+        #assignments input, #assignments button { margin:10px 0; padding:10px; border-radius:8px; border:1px solid #ccc; width:100%; }
+        #assignments button { background:#fca311; border:none; color:#0d1b2a; font-weight:bold; cursor:pointer; transition:0.3s; }
+        #assignments button:hover { background:#e59400; }
+
+        /* Charts */
+        #attendance-chart, #performance-chart { margin-top:20px; }
+
+    </style>
+</head>
+<body>
+
+<!-- AI Assistant Floating Widget -->
+<div id="ai-assistant">
+    <div id="assistant-icon"><i class="fas fa-robot"></i></div>
+    <div id="assistant-chat">
+        <div id="assistant-header">
+            <span>AI Assistant</span>
+            <span id="assistant-close"><i class="fas fa-times"></i></span>
+        </div>
+        <div id="assistant-messages"></div>
+        <input type="text" id="assistant-input" placeholder="Ask me anything...">
+        <button id="assistant-send">Send</button>
+    </div>
+</div>
+
+<!-- Loading Screen -->
+<div id="loading-screen">
+    <div id="loading-progress"></div>
+</div>
+
+<!-- Navbar -->
+<nav>
+    <div class="nav-left">
+        <img src="logo.png"SJEC Logo">
+        <h1>SJEC Portal</h1>
+    </div>
+    <div class="nav-links" id="nav-links">
+        <a class="nav-link active" data-section="homei">Home</a>
+        <a class="nav-link" data-section="chatbot-section">Chatbot</a>
+        <a class="nav-link" data-section="remainders">Remainders</a>
+        <a class="nav-link" data-section="assignments">Assignments</a>
+        <a class="nav-link" data-section="charts">Charts</a>
+    </div>
+    <div id="mobile-menu-btn"><i class="fas fa-bars"></i></div>
+</nav>
+
+<!-- Home Section with Description -->
+<div class="section active" id="homei">
+    <h2>Welcome to SJEC Portal</h2>
+    <p>
+        St. Joseph Engineering College (SJEC), a premier institution committed to excellence in education, offers 
+        world-class facilities, highly qualified faculty, and a wide range of engineering and management courses. 
+        Our mission is to nurture innovation, critical thinking, and professional skills in students, preparing them 
+        for successful careers and lifelong learning.
+    </p>
+    <p>
+        The SJEC Portal is designed to make your academic and administrative life easier. Explore features like 
+        the AI Chatbot for instant assistance, personalized reminders for assignments and important dates, 
+        smooth assignment submission, and interactive charts for monitoring your attendance and performance.
+    </p>
+</div>
+
+<!-- Image Slider Section -->
+<div class="section active" id="home">
+  <div class="slider-container">
+      <div class="slider-wrapper">
+       <img src="logo.png">
+          <img src="vdc.jpg" >
+          <img src="download.png">
+         
+          <img src="grp.jpg">
+          <img src="casi.jpg">
+          <img src="WhatsApp Image 2025-11-17 at 10.48.21_ca7d803c.jpg" alt="WhatsApp Image">
+          <img src="ncco.jpg">
+      </div>
+      <div class="prev">&#10094;</div>
+      <div class="next">&#10095;</div>
+      <div class="dots">
+          <span class="dot active"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+      </div>
+  </div>
+</div>
+
+<!-- Chatbot Section -->
+<div class="section" id="chatbot-section">
+    <h2>Chatbot</h2>
+    <div id="chatbot">
+        <div id="chat-messages"></div>
+        <input type="text" id="chat-input" placeholder="Type a message...">
+        <button id="send-message">Send</button>
+    </div>
+</div>
+
+<!-- Remainders Section -->
+<div class="section" id="remainders">
+    <h2>Remainders</h2>
+    <input type="text" id="remainder-title" placeholder="Title">
+    <textarea id="remainder-desc" placeholder="Description"></textarea>
+    <input type="date" id="remainder-date">
+    <button id="add-remainder">Add Remainder</button>
+    <div id="remainder-list"></div>
+</div>
+
+<!-- Assignments Section -->
+<div class="section" id="assignments">
+    <h2>Assignment Submission</h2>
+    <input type="text" id="assignment-name" placeholder="Assignment Name">
+    <input type="text" id="assignment-subject" placeholder="Subject">
+    <div id="file-upload">
+        <i class="fas fa-cloud-upload-alt"></i>
+        <p>Click to upload or drag and drop</p>
+        <p>PDF, DOC, DOCX (Max. 10MB)</p>
+    </div>
+    <input type="file" id="file-input" style="display:none;">
+    <button id="submit-assignment">Submit Assignment</button>
+</div>
+
+<!-- Charts Section -->
+<div class="section" id="charts">
+    <h2>Attendance & Performance Charts</h2>
+    <div id="attendance">
+        <h3>Attendance</h3>
+        <div id="attendance-chart"></div>
+    </div>
+    <div id="performance">
+        <h3>Performance</h3>
+        <div id="performance-chart"></div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script>
+  // Loading Animation
+document.addEventListener('DOMContentLoaded', function() {
+    const loadingScreen = document.getElementById('loading-screen');
+    const loadingProgress = document.getElementById('loading-progress');
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress >= 100) {
+            progress = 100;
+            clearInterval(interval);
+            setTimeout(() => {
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => { loadingScreen.style.display = 'none'; }, 500);
+            }, 500);
+        }
+        loadingProgress.style.width = `${progress}%`;
+    }, 200);
+});
+
+// Navigation
+const navLinks = document.querySelectorAll('.nav-link');
+const sections = document.querySelectorAll('.section');
+const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+const navLinksContainer = document.getElementById('nav-links');
+
+navLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        navLinks.forEach(l => l.classList.remove('active'));
+        sections.forEach(s => s.classList.remove('active'));
+        this.classList.add('active');
+        const sectionId = this.getAttribute('data-section');
+        document.getElementById(sectionId).classList.add('active');
+        if (navLinksContainer.classList.contains('active')) {
+            navLinksContainer.classList.remove('active');
+        }
+    });
+});
+
+mobileMenuBtn.addEventListener('click', function() {
+    navLinksContainer.classList.toggle('active');
+});
+
+// Chatbot
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const sendMessageBtn = document.getElementById('send-message');
+
+const botResponses = {
+    'hello':'Hello! How can I help you today?',
+    'hi':'Hi there! What can I do for you?',
+    'admission':'Please visit the admissions office or check online.',
+    'courses':'We offer Engineering, Business, Arts, and Science courses.',
+    'fee':'Contact finance office for fees details.',
+    'faculty':'Highly qualified faculty with industry experience.',
+    'placement':'94%+ students placed in top companies.',
+    'library':'Open 8 AM to 10 PM weekdays, 9 AM to 6 PM weekends.',
+    'hostel':'Separate hostels for boys and girls with modern facilities.',
+    'default':"I didn't understand. Can you rephrase?",
+    'events':"TIARA WAS ON 13,14,15 OF NOV",
+      'tiara': 'it is tech fest',
+'millan': " is traditional day , dates are not yet decided"
+};
+
+function addMessage(message, isUser=false){
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message');
+    messageDiv.classList.add(isUser?'user-message':'bot-message');
+    messageDiv.textContent = message;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function processMessage(message){
+    const lowerMessage = message.toLowerCase();
+    let response = botResponses.default;
+    for(const key in botResponses){
+        if(lowerMessage.includes(key)){
+            response = botResponses[key];
+            break;
+        }
+    }
+    setTimeout(()=>{ addMessage(response); },1000);
+}
+
+sendMessageBtn.addEventListener('click', function(){
+    const message = chatInput.value.trim();
+    if(message){
+        addMessage(message,true);
+        chatInput.value='';
+        processMessage(message);
+    }
+});
+
+chatInput.addEventListener('keypress', function(e){
+    if(e.key==='Enter'){ sendMessageBtn.click(); }
+});
+
+// Remainders
+const addRemainderBtn = document.getElementById('add-remainder');
+const remainderList = document.getElementById('remainder-list');
+
+addRemainderBtn.addEventListener('click', function(){
+    const title = document.getElementById('remainder-title').value;
+    const desc = document.getElementById('remainder-desc').value;
+    const date = document.getElementById('remainder-date').value;
+    if(title && desc && date){
+        const remainderItem = document.createElement('div');
+        remainderItem.classList.add('remainder-item');
+        const formattedDate = new Date(date).toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+        remainderItem.innerHTML=`<h4>${title}</h4><p>${desc}</p><div class="date">${formattedDate}</div>`;
+        remainderList.appendChild(remainderItem);
+        document.getElementById('remainder-title').value='';
+        document.getElementById('remainder-desc').value='';
+        document.getElementById('remainder-date').value='';
+        alert('Remainder added successfully!');
+    } else { alert('Please fill in all fields!'); }
+});
+
+// File Upload & Assignment
+const fileUpload = document.getElementById('file-upload');
+const fileInput = document.getElementById('file-input');
+const submitAssignmentBtn = document.getElementById('submit-assignment');
+
+fileUpload.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', function(){
+    if(this.files && this.files[0]){
+        fileUpload.innerHTML=`<i class="fas fa-file-alt"></i><p>${this.files[0].name}</p><p>File selected successfully</p>`;
+    }
+});
+
+submitAssignmentBtn.addEventListener('click', function(){
+    const assignmentName = document.getElementById('assignment-name').value;
+    const subject = document.getElementById('assignment-subject').value;
+    const file = fileInput.files[0];
+    if(assignmentName && subject && file){
+        alert('Assignment submitted successfully!');
+        document.getElementById('assignment-name').value='';
+        document.getElementById('assignment-subject').value='';
+        fileInput.value='';
+        fileUpload.innerHTML=`<i class="fas fa-cloud-upload-alt"></i><p>Click to upload or drag and drop</p><p>PDF, DOC, DOCX (Max. 10MB)</p>`;
+    } else { alert('Please fill all fields and select a file!'); }
+});
+
+// Simple Bar Charts
+function createSimpleBarChart(containerId, data, colors){
+    const container = document.getElementById(containerId);
+    container.innerHTML='';
+    const maxValue = Math.max(...data.values);
+    const barHeight = 30;
+    data.labels.forEach((label,i)=>{
+        const value = data.values[i];
+        const percentage = (value/maxValue)*100;
+        const barContainer = document.createElement('div');
+        barContainer.style.marginBottom='15px';
+        barContainer.style.display='flex';
+        barContainer.style.alignItems='center';
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = label;
+        labelSpan.style.width='150px';
+        labelSpan.style.fontWeight='500';
+        const barWrapper = document.createElement('div');
+        barWrapper.style.flex='1';
+        barWrapper.style.height=`${barHeight}px`;
+        barWrapper.style.backgroundColor='#f0f0f0';
+        barWrapper.style.borderRadius='6px';
+        barWrapper.style.overflow='hidden';
+        barWrapper.style.position='relative';
+        const bar = document.createElement('div');
+        bar.style.height='100%';
+        bar.style.width=`${percentage}%`;
+        bar.style.backgroundColor=colors[i%colors.length];
+        bar.style.transition='width 1s ease';
+        bar.style.borderRadius='6px';
+        const valueSpan = document.createElement('span');
+        valueSpan.textContent=`${value}%`;
+        valueSpan.style.position='absolute';
+        valueSpan.style.right='10px';
+        valueSpan.style.top='50%';
+        valueSpan.style.transform='translateY(-50%)';
+        valueSpan.style.color='#333';
+        valueSpan.style.fontWeight='500';
+        barWrapper.appendChild(bar);
+        barWrapper.appendChild(valueSpan);
+        barContainer.appendChild(labelSpan);
+        barContainer.appendChild(barWrapper);
+        container.appendChild(barContainer);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+    const attendanceData = { labels:['Mathematics','Physics','Chemistry','Computer Science','English'], values:[92,85,88,95,90] };
+    const performanceData = { labels:['Mathematics','Physics','Chemistry','Computer Science','English'], values:[88,82,85,92,87] };
+    const chartColors = ['#0d1b2a','#fca311','#00bcd4','#4caf50','#ff5722'];
+    const observer = new IntersectionObserver((entries)=>{
+        entries.forEach(entry=>{
+            if(entry.isIntersecting){
+                if(entry.target.id==='attendance'){ createSimpleBarChart('attendance-chart',attendanceData,chartColors); }
+                else if(entry.target.id==='performance'){ createSimpleBarChart('performance-chart',performanceData,chartColors); }
+            }
+        });
+    }, { threshold:0.5 });
+    observer.observe(document.getElementById('attendance'));
+    observer.observe(document.getElementById('performance'));
+});
+
+// AI Assistant Toggle
+const assistantIcon = document.getElementById('assistant-icon');
+const assistantChat = document.getElementById('assistant-chat');
+const assistantClose = document.getElementById('assistant-close');
+const assistantMessages = document.getElementById('assistant-messages');
+const assistantInput = document.getElementById('assistant-input');
+const assistantSend = document.getElementById('assistant-send');
+
+assistantIcon.addEventListener('click', () => {
+    assistantChat.style.display = 'flex';
+    assistantChat.style.flexDirection = 'column';
+});
+
+assistantClose.addEventListener('click', () => {
+    assistantChat.style.display = 'none';
+});
+
+function addAssistantMessage(message, isUser=false){
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add(isUser?'user-message':'assistant-message');
+    msgDiv.textContent = message;
+    assistantMessages.appendChild(msgDiv);
+    assistantMessages.scrollTop = assistantMessages.scrollHeight;
+}
+
+const assistantResponses = {
+    'hello':'Hello! I am your AI Assistant. How can I help you today?',
+    'hi':'Hi there! Ask me anything about SJEC Portal.',
+    'courses':'SJEC offers Engineering courses in various streams.',
+    'admission':'Admissions are open! Please check the Admission section.',
+    'fee':'You can check the fees structure in the Finance section.',
+    'default':'let me check once.',
+    'tiara': 'it is tech fest',
+      'events':"TIARA WAS ON 13,14,15 OF NOV",
+'millan': " is traditional day , dates are not yet decided"
+};
+
+function processAssistantMessage(msg){
+    const lowerMsg = msg.toLowerCase();
+    let response = assistantResponses.default;
+    for(const key in assistantResponses){
+        if(lowerMsg.includes(key)){
+            response = assistantResponses[key];
+            break;
+        }
+    }
+    setTimeout(()=>{ addAssistantMessage(response); }, 800);
+}
+
+assistantSend.addEventListener('click', () => {
+    const msg = assistantInput.value.trim();
+    if(msg){
+        addAssistantMessage(msg,true);
+        assistantInput.value='';
+        processAssistantMessage(msg);
+    }
+});
+
+assistantInput.addEventListener('keypress', (e)=>{
+    if(e.key==='Enter'){ assistantSend.click(); }
+});
+
+// Slider JS
+const sliderWrapper = document.querySelector('.slider-wrapper');
+const slides = document.querySelectorAll('.slider-wrapper img');
+const prev = document.querySelector('.prev');
+const next = document.querySelector('.next');
+const dots = document.querySelectorAll('.dot');
+let index = 0;
+
+function showSlide(i) {
+    if(i >= slides.length) index = 0;
+    if(i < 0) index = slides.length - 1;
+    sliderWrapper.style.transform = `translateX(-${index * 100}%)`;
+    dots.forEach(dot => dot.classList.remove('active'));
+    dots[index].classList.add('active');
+}
+
+next.addEventListener('click', () => {
+    index++;
+    showSlide(index);
+});
+
+prev.addEventListener('click', () => {
+    index--;
+    showSlide(index);
+});
+
+dots.forEach((dot, i) => {
+    dot.addEventListener('click', () => {
+        index = i;
+        showSlide(index);
+    });
+});
+
+// Auto slide every 3 seconds
+setInterval(() => {
+    index++;
+    showSlide(index);
+}, 3000);
+
+
+</script>
+
+</body>
+</html>
